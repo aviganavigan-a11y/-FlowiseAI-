@@ -299,219 +299,327 @@ app.post('/api/generate-agent', async (c) => {
 async function generateAgentConfig(params) {
   const { agentType, taskDescription, modelPreference, includeMemory, includeTools, availableNodes } = params
 
-  // Create a comprehensive prompt for agent generation
-  const prompt = `Создай JSON конфигурацию для Flowise агента на основе следующих параметров:
+  // Generate intelligent system prompt based on task description
+  const systemPrompt = generateSystemPrompt(taskDescription, agentType)
+  
+  // Get model configuration based on preference
+  const modelConfig = getModelConfig(modelPreference || 'gpt-4o-mini')
 
-Тип агента: ${agentType || 'пользовательский'}
-Описание задачи: ${taskDescription}
-Предпочитаемая модель: ${modelPreference || 'автоматический выбор'}
-Включить память: ${includeMemory ? 'да' : 'нет'}
-Включить инструменты: ${includeTools ? 'да' : 'нет'}
-
-Доступные типы нодов в Flowise: ${availableNodes.join(', ')}
-
-Создай полную рабочую конфигурацию агента в JSON формате, которая включает:
-1. Основные ноды (LLM, Chain, Memory если нужно)
-2. Правильные связи между нодами
-3. Соответствующие параметры и настройки
-4. Metadata для каждого нода
-
-Ответь только JSON конфигурацией без дополнительного текста.`
-
-  // For now, create a template-based configuration
-  // In production, this would call an AI service like OpenAI
-  const baseConfig = {
+  // Create proper Flowise AgentFlow v2 configuration
+  const agentConfig = {
+    "description": `${getAgentTypeDescription(agentType)} - ${taskDescription}`,
+    "usecases": [getUseCaseCategory(agentType)],
     "nodes": [
+      // Start node (required for all agent flows)
       {
-        "width": 300,
-        "height": 376,
-        "id": "chatOpenAI_0",
-        "position": { "x": 671, "y": 155 },
-        "type": "customNode",
+        "id": "startAgentflow_0",
+        "type": "agentFlow",
+        "position": {
+          "x": 64,
+          "y": 98.5
+        },
         "data": {
-          "id": "chatOpenAI_0",
-          "label": "ChatOpenAI",
-          "version": 6,
-          "name": "chatOpenAI",
-          "type": "ChatOpenAI",
-          "baseClasses": ["ChatOpenAI", "BaseChatModel", "BaseLanguageModel", "Runnable"],
-          "category": "Chat Models",
-          "description": "Wrapper around OpenAI large language models that use the Chat endpoint",
+          "id": "startAgentflow_0",
+          "label": "Start",
+          "version": 1.1,
+          "name": "startAgentflow",
+          "type": "Start",
+          "color": "#7EE787",
+          "hideInput": true,
+          "baseClasses": ["Start"],
+          "category": "Agent Flows",
+          "description": "Starting point of the agentflow",
           "inputParams": [
             {
-              "label": "Connect Credential",
-              "name": "credential",
-              "type": "credential",
-              "credentialNames": ["openAIApi"]
-            },
-            {
-              "label": "Model Name",
-              "name": "modelName",
+              "label": "Input Type",
+              "name": "startInputType",
               "type": "options",
               "options": [
-                { "label": "gpt-4", "name": "gpt-4" },
-                { "label": "gpt-4-turbo", "name": "gpt-4-turbo" },
-                { "label": "gpt-3.5-turbo", "name": "gpt-3.5-turbo" }
+                {
+                  "label": "Chat Input",
+                  "name": "chatInput",
+                  "description": "Start the conversation with chat input"
+                }
               ],
-              "default": modelPreference || "gpt-3.5-turbo",
-              "optional": true
-            }
-          ],
-          "inputAnchors": [
-            {
-              "label": "Cache",
-              "name": "cache",
-              "type": "BaseCache",
-              "optional": true
-            }
-          ],
-          "inputs": {
-            "modelName": modelPreference || "gpt-3.5-turbo",
-            "temperature": 0.9,
-            "maxTokens": "",
-            "topP": "",
-            "frequencyPenalty": "",
-            "presencePenalty": "",
-            "timeout": "",
-            "basepath": "",
-            "baseOptions": "",
-            "cache": ""
-          },
-          "outputAnchors": [
-            {
-              "id": "chatOpenAI_0-output-chatOpenAI-ChatOpenAI|BaseChatModel|BaseLanguageModel|Runnable",
-              "name": "chatOpenAI",
-              "label": "ChatOpenAI",
-              "description": "Wrapper around OpenAI large language models that use the Chat endpoint",
-              "type": "ChatOpenAI | BaseChatModel | BaseLanguageModel | Runnable"
-            }
-          ]
-        }
-      },
-      {
-        "width": 300,
-        "height": 481,
-        "id": "conversationChain_0",
-        "position": { "x": 1092, "y": 155 },
-        "type": "customNode",
-        "data": {
-          "id": "conversationChain_0",
-          "label": "Conversation Chain",
-          "version": 3,
-          "name": "conversationChain",
-          "type": "ConversationChain",
-          "baseClasses": ["ConversationChain", "LLMChain", "BaseChain", "Runnable"],
-          "category": "Chains",
-          "description": `Цепочка для ведения разговора с памятью. Задача: ${taskDescription}`,
-          "inputParams": [
-            {
-              "label": "System Message",
-              "name": "systemMessagePrompt",
-              "type": "string",
-              "rows": 4,
-              "additionalParams": true,
-              "optional": true,
-              "default": `Ты профессиональный AI ассистент. Твоя задача: ${taskDescription}. Отвечай профессионально и полезно.`
-            }
-          ],
-          "inputAnchors": [
-            {
-              "label": "Language Model",
-              "name": "model",
-              "type": "BaseLanguageModel"
+              "default": "chatInput",
+              "id": "startAgentflow_0-input-startInputType-options",
+              "display": true
             },
             {
-              "label": "Memory",
-              "name": "memory",
-              "type": "BaseMemory",
-              "optional": true
+              "label": "Ephemeral Memory",
+              "name": "startEphemeralMemory",
+              "type": "boolean",
+              "description": "Start fresh for every execution without past chat history",
+              "optional": true,
+              "id": "startAgentflow_0-input-startEphemeralMemory-boolean",
+              "display": true
             }
           ],
+          "inputAnchors": [],
           "inputs": {
-            "model": "{{chatOpenAI_0.data.instance}}",
-            "memory": includeMemory ? "{{bufferMemory_0.data.instance}}" : "",
-            "systemMessagePrompt": `Ты профессиональный AI ассистент. Твоя задача: ${taskDescription}. Отвечай профессионально и полезно.`
+            "startInputType": "chatInput",
+            "startEphemeralMemory": !includeMemory
           },
           "outputAnchors": [
             {
-              "id": "conversationChain_0-output-conversationChain-ConversationChain|LLMChain|BaseChain|Runnable",
-              "name": "conversationChain",
-              "label": "ConversationChain",
-              "type": "ConversationChain | LLMChain | BaseChain | Runnable"
+              "id": "startAgentflow_0-output-startAgentflow",
+              "label": "Start",
+              "name": "startAgentflow"
             }
-          ]
-        }
+          ],
+          "outputs": {},
+          "selected": false
+        },
+        "width": 103,
+        "height": 66,
+        "positionAbsolute": {
+          "x": 64,
+          "y": 98.5
+        },
+        "selected": false,
+        "dragging": false
+      },
+      // Main Agent node
+      {
+        "id": "agentAgentflow_0",
+        "position": {
+          "x": 250,
+          "y": 96.5
+        },
+        "data": {
+          "id": "agentAgentflow_0",
+          "label": getAgentLabel(agentType),
+          "version": 1,
+          "name": "agentAgentflow",
+          "type": "Agent",
+          "color": "#4DD0E1",
+          "baseClasses": ["Agent"],
+          "category": "Agent Flows",
+          "description": "Dynamically choose and utilize tools during runtime, enabling multi-step reasoning",
+          "inputParams": [
+            {
+              "label": "Model",
+              "name": "agentModel",
+              "type": "asyncOptions",
+              "loadMethod": "listModels",
+              "loadConfig": true,
+              "id": "agentAgentflow_0-input-agentModel-asyncOptions",
+              "display": true
+            },
+            {
+              "label": "Messages",
+              "name": "agentMessages",
+              "type": "array",
+              "optional": true,
+              "acceptVariable": true,
+              "array": [
+                {
+                  "label": "Role",
+                  "name": "role",
+                  "type": "options",
+                  "options": [
+                    { "label": "System", "name": "system" },
+                    { "label": "Assistant", "name": "assistant" },
+                    { "label": "User", "name": "user" }
+                  ]
+                },
+                {
+                  "label": "Content",
+                  "name": "content",
+                  "type": "string",
+                  "acceptVariable": true,
+                  "generateInstruction": true,
+                  "rows": 4
+                }
+              ],
+              "id": "agentAgentflow_0-input-agentMessages-array",
+              "display": true
+            },
+            {
+              "label": "Enable Memory",
+              "name": "agentEnableMemory",
+              "type": "boolean",
+              "description": "Enable memory for the conversation thread",
+              "default": true,
+              "optional": true,
+              "id": "agentAgentflow_0-input-agentEnableMemory-boolean",
+              "display": true
+            }
+          ],
+          "inputAnchors": [],
+          "inputs": {
+            "agentModel": modelConfig.modelType,
+            "agentMessages": [
+              {
+                "role": "system",
+                "content": systemPrompt
+              }
+            ],
+            "agentTools": includeTools ? generateToolsConfig(agentType) : "",
+            "agentEnableMemory": includeMemory,
+            "agentMemoryType": "allMessages",
+            "agentReturnResponseAs": "userMessage",
+            "agentModelConfig": modelConfig
+          },
+          "outputAnchors": [
+            {
+              "id": "agentAgentflow_0-output-agentAgentflow",
+              "label": "Agent",
+              "name": "agentAgentflow"
+            }
+          ],
+          "outputs": {},
+          "selected": false
+        },
+        "type": "agentFlow",
+        "width": 175,
+        "height": 72,
+        "selected": false,
+        "positionAbsolute": {
+          "x": 250,
+          "y": 96.5
+        },
+        "dragging": false
       }
     ],
     "edges": [
       {
-        "source": "chatOpenAI_0",
-        "sourceHandle": "chatOpenAI_0-output-chatOpenAI-ChatOpenAI|BaseChatModel|BaseLanguageModel|Runnable",
-        "target": "conversationChain_0",
-        "targetHandle": "conversationChain_0-input-model-BaseLanguageModel",
-        "type": "buttonedge",
-        "id": "chatOpenAI_0-chatOpenAI_0-output-chatOpenAI-ChatOpenAI|BaseChatModel|BaseLanguageModel|Runnable-conversationChain_0-conversationChain_0-input-model-BaseLanguageModel"
+        "source": "startAgentflow_0",
+        "sourceHandle": "startAgentflow_0-output-startAgentflow",
+        "target": "agentAgentflow_0",
+        "targetHandle": "agentAgentflow_0",
+        "data": {
+          "sourceColor": "#7EE787",
+          "targetColor": "#4DD0E1",
+          "isHumanInput": false
+        },
+        "type": "agentFlow",
+        "id": "startAgentflow_0-startAgentflow_0-output-startAgentflow-agentAgentflow_0-agentAgentflow_0"
       }
     ]
   }
 
-  // Add memory node if requested
-  if (includeMemory) {
-    baseConfig.nodes.push({
-      "width": 300,
-      "height": 251,
-      "id": "bufferMemory_0",
-      "position": { "x": 671, "y": 580 },
-      "type": "customNode",
-      "data": {
-        "id": "bufferMemory_0",
-        "label": "Buffer Memory",
-        "version": 2,
-        "name": "bufferMemory",
-        "type": "BufferMemory",
-        "baseClasses": ["BufferMemory", "BaseChatMemory", "BaseMemory"],
-        "category": "Memory",
-        "description": "Retrieve chat messages stored in buffer",
-        "inputParams": [
-          {
-            "label": "Memory Key",
-            "name": "memoryKey",
-            "type": "string",
-            "default": "chat_history"
-          },
-          {
-            "label": "Input Key",
-            "name": "inputKey",
-            "type": "string",
-            "default": "input"
-          }
-        ],
-        "inputs": {
-          "memoryKey": "chat_history",
-          "inputKey": "input"
-        },
-        "outputAnchors": [
-          {
-            "id": "bufferMemory_0-output-bufferMemory-BufferMemory|BaseChatMemory|BaseMemory",
-            "name": "bufferMemory",
-            "label": "BufferMemory",
-            "type": "BufferMemory | BaseChatMemory | BaseMemory"
-          }
-        ]
-      }
-    })
+  return agentConfig
+}
 
-    baseConfig.edges.push({
-      "source": "bufferMemory_0",
-      "sourceHandle": "bufferMemory_0-output-bufferMemory-BufferMemory|BaseChatMemory|BaseMemory",
-      "target": "conversationChain_0",
-      "targetHandle": "conversationChain_0-input-memory-BaseMemory",
-      "type": "buttonedge",
-      "id": "bufferMemory_0-bufferMemory_0-output-bufferMemory-BufferMemory|BaseChatMemory|BaseMemory-conversationChain_0-conversationChain_0-input-memory-BaseMemory"
-    })
+// Helper functions for intelligent agent generation
+function generateSystemPrompt(taskDescription, agentType) {
+  const basePrompts = {
+    'chatbot': `<p>Ты профессиональный чат-бот помощник. Твоя основная задача: ${taskDescription}</p><p>Принципы работы:</p><ul><li>Всегда будь вежливым и профессиональным</li><li>Отвечай четко и по существу</li><li>Если не знаешь ответ, честно признайся в этом</li><li>Предлагай дополнительную помощь когда это уместно</li></ul>`,
+    
+    'analyzer': `<p>Ты экспертный аналитический агент. Твоя задача: ${taskDescription}</p><p>Методология анализа:</p><ul><li>Собирай и структурируй данные</li><li>Применяй критическое мышление</li><li>Предоставляй обоснованные выводы</li><li>Выделяй ключевые инсайты и рекомендации</li></ul>`,
+    
+    'automation': `<p>Ты агент автоматизации задач. Твоя цель: ${taskDescription}</p><p>Принципы автоматизации:</p><ul><li>Оптимизируй процессы для максимальной эффективности</li><li>Обеспечивай надежность и стабильность</li><li>Документируй все выполняемые действия</li><li>Предупреждай о возможных проблемах</li></ul>`,
+    
+    'retrieval': `<p>Ты RAG агент (Retrieval-Augmented Generation). Твоя задача: ${taskDescription}</p><p>Используя предоставленный контекст, отвечай на вопросы пользователя максимально точно и полно.</p><p>Если в контексте нет релевантной информации для ответа на вопрос, честно сообщи об этом. Не выдумывай информацию.</p>`,
+    
+    'multimodal': `<p>Ты мультимодальный агент, способный работать с различными типами контента. Твоя задача: ${taskDescription}</p><p>Возможности:</p><ul><li>Анализ текста, изображений и других медиа</li><li>Интеграция информации из разных источников</li><li>Адаптация к различным форматам входных данных</li></ul>`
   }
 
-  return baseConfig
+  return basePrompts[agentType] || `<p>Ты профессиональный AI ассистент. Твоя задача: ${taskDescription}</p><p>Выполняй задачи качественно, профессионально и в соответствии с требованиями пользователя.</p>`
+}
+
+function getModelConfig(modelPreference) {
+  const configs = {
+    'gpt-4': {
+      modelType: 'chatOpenAI',
+      modelName: 'gpt-4',
+      temperature: 0.7,
+      streaming: true,
+      agentModel: 'chatOpenAI'
+    },
+    'gpt-4o': {
+      modelType: 'chatOpenAI', 
+      modelName: 'gpt-4o',
+      temperature: 0.7,
+      streaming: true,
+      agentModel: 'chatOpenAI'
+    },
+    'gpt-4o-mini': {
+      modelType: 'chatOpenAI',
+      modelName: 'gpt-4o-mini', 
+      temperature: 0.7,
+      streaming: true,
+      agentModel: 'chatOpenAI'
+    },
+    'gpt-3.5-turbo': {
+      modelType: 'chatOpenAI',
+      modelName: 'gpt-3.5-turbo',
+      temperature: 0.9,
+      streaming: true,
+      agentModel: 'chatOpenAI'
+    },
+    'claude': {
+      modelType: 'chatAnthropic',
+      modelName: 'claude-3-sonnet-20240229',
+      temperature: 0.7,
+      streaming: true,
+      agentModel: 'chatAnthropic'
+    }
+  }
+
+  const config = configs[modelPreference] || configs['gpt-4o-mini']
+  
+  return {
+    ...config,
+    cache: "",
+    maxTokens: "",
+    topP: "",
+    frequencyPenalty: "",
+    presencePenalty: "",
+    timeout: "",
+    strictToolCalling: "",
+    stopSequence: "",
+    basepath: "",
+    proxyUrl: "",
+    baseOptions: "",
+    allowImageUploads: "",
+    imageResolution: "low"
+  }
+}
+
+function getAgentTypeDescription(agentType) {
+  const descriptions = {
+    'chatbot': 'Интеллектуальный чат-бот для общения с пользователями',
+    'analyzer': 'Аналитический агент для обработки и анализа данных',
+    'automation': 'Агент автоматизации для выполнения рутинных задач',
+    'retrieval': 'RAG агент для работы с базой знаний',
+    'multimodal': 'Мультимодальный агент для работы с различными типами контента',
+    'custom': 'Пользовательский агент с настраиваемой логикой'
+  }
+  
+  return descriptions[agentType] || 'Универсальный AI агент'
+}
+
+function getUseCaseCategory(agentType) {
+  const categories = {
+    'chatbot': 'Customer Support',
+    'analyzer': 'Data Analysis', 
+    'automation': 'Task Automation',
+    'retrieval': 'Documents QnA',
+    'multimodal': 'Content Analysis',
+    'custom': 'General Purpose'
+  }
+  
+  return categories[agentType] || 'General Purpose'
+}
+
+function getAgentLabel(agentType) {
+  const labels = {
+    'chatbot': 'Чат-бот Помощник',
+    'analyzer': 'Аналитический Агент',
+    'automation': 'Агент Автоматизации', 
+    'retrieval': 'RAG Агент',
+    'multimodal': 'Мультимодальный Агент',
+    'custom': 'Пользовательский Агент'
+  }
+  
+  return labels[agentType] || 'AI Агент'
+}
+
+function generateToolsConfig(agentType) {
+  // В будущем здесь можно добавить предустановленные инструменты для разных типов агентов
+  return ""
 }
 
 export default app
