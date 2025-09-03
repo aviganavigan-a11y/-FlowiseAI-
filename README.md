@@ -11,8 +11,9 @@
 
 ## URL-адреса
 - **Разработка**: http://localhost:3000
-- **Продакшн**: https://flowise-agent-generator.pages.dev (после деплоя)
-- **GitHub**: https://github.com/username/flowise-agent-generator (будет настроен)
+- **Демо**: https://3000-iwwf11md7ygiiyv78y0wc-6532622b.e2b.dev
+- **Продакшн**: https://flowise-agent-generator.pages.dev (настраивается)
+- **GitHub**: https://github.com/aviganavigan-a11y/-FlowiseAI-
 
 ## Архитектура данных
 - **Модели данных**: 
